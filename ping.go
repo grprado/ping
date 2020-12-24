@@ -86,7 +86,7 @@ func New(addr string) *Pinger {
 		Count:      -1,
 		Interval:   time.Second,
 		RecordRtts: true,
-		Size:       timeSliceLength,
+		Size:       64 - timeSliceLength,
 		Timeout:    time.Second * 100000,
 		addr:       addr,
 		done:       make(chan bool),
@@ -556,9 +556,6 @@ func (p *Pinger) sendICMP(conn *icmp.PacketConn) error {
 	}
 
 	var dst net.Addr = p.ipaddr
-	if p.protocol == "udp" {
-		dst = &net.UDPAddr{IP: p.ipaddr.IP, Zone: p.ipaddr.Zone}
-	}
 
 	t := timeToBytes(time.Now())
 	if remainSize := p.Size - timeSliceLength; remainSize > 0 {
