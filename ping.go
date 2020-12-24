@@ -58,9 +58,11 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand"
 	"net"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -80,6 +82,8 @@ var (
 	ipv6Proto = map[string]string{"icmp": "ip6:ipv6-icmp", "udp": "udp6"}
 )
 
+var id int64 = rand.New(rand.NewSource(time.Now().UnixNano())).Int63()
+
 // New returns a new Pinger struct pointer.
 func New(addr string) *Pinger {
 	return &Pinger{
@@ -88,6 +92,7 @@ func New(addr string) *Pinger {
 		RecordRtts: true,
 		Size:       64 - timeSliceLength,
 		Timeout:    time.Second * 100000,
+		id:         int(atomic.AddInt64(&id, 1) % math.MaxInt16),
 		addr:       addr,
 		done:       make(chan bool),
 		ipaddr:     nil,
