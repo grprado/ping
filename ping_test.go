@@ -19,8 +19,8 @@ func TestProcessPacket(t *testing.T) {
 		shouldBe1++
 	}
 
-	data := append(timeToBytes(time.Now()), intToBytes(pinger.Tracker)...)
-	if remainSize := pinger.Size - timeSliceLength - trackerLength; remainSize > 0 {
+	data := timeToBytes(time.Now())
+	if remainSize := pinger.Size - timeSliceLength; remainSize > 0 {
 		data = append(data, bytes.Repeat([]byte{1}, remainSize)...)
 	}
 
@@ -57,8 +57,8 @@ func TestProcessPacket_IgnoreNonEchoReplies(t *testing.T) {
 		shouldBe0++
 	}
 
-	data := append(timeToBytes(time.Now()), intToBytes(pinger.Tracker)...)
-	if remainSize := pinger.Size - timeSliceLength - trackerLength; remainSize > 0 {
+	data := timeToBytes(time.Now())
+	if remainSize := pinger.Size - timeSliceLength; remainSize > 0 {
 		data = append(data, bytes.Repeat([]byte{1}, remainSize)...)
 	}
 
@@ -96,8 +96,8 @@ func TestProcessPacket_IDMismatch(t *testing.T) {
 		shouldBe0++
 	}
 
-	data := append(timeToBytes(time.Now()), intToBytes(pinger.Tracker)...)
-	if remainSize := pinger.Size - timeSliceLength - trackerLength; remainSize > 0 {
+	data := timeToBytes(time.Now())
+	if remainSize := pinger.Size - timeSliceLength; remainSize > 0 {
 		data = append(data, bytes.Repeat([]byte{1}, remainSize)...)
 	}
 
@@ -126,50 +126,12 @@ func TestProcessPacket_IDMismatch(t *testing.T) {
 	AssertTrue(t, shouldBe0 == 0)
 }
 
-func TestProcessPacket_TrackerMismatch(t *testing.T) {
-	pinger := makeTestPinger()
-	shouldBe0 := 0
-	// this function should not be called because the tracker is mismatched
-	pinger.OnRecv = func(pkt *Packet) {
-		shouldBe0++
-	}
-
-	data := append(timeToBytes(time.Now()), intToBytes(999)...)
-	if remainSize := pinger.Size - timeSliceLength - trackerLength; remainSize > 0 {
-		data = append(data, bytes.Repeat([]byte{1}, remainSize)...)
-	}
-
-	body := &icmp.Echo{
-		ID:   pinger.id,
-		Seq:  pinger.sequence,
-		Data: data,
-	}
-
-	msg := &icmp.Message{
-		Type: ipv4.ICMPTypeEchoReply,
-		Code: 0,
-		Body: body,
-	}
-
-	msgBytes, _ := msg.Marshal(nil)
-
-	pkt := packet{
-		nbytes: len(msgBytes),
-		bytes:  msgBytes,
-		ttl:    24,
-	}
-
-	err := pinger.processPacket(&pkt)
-	AssertNoError(t, err)
-	AssertTrue(t, shouldBe0 == 0)
-}
-
 func TestProcessPacket_LargePacket(t *testing.T) {
 	pinger := makeTestPinger()
 	pinger.Size = 4096
 
-	data := append(timeToBytes(time.Now()), intToBytes(pinger.Tracker)...)
-	if remainSize := pinger.Size - timeSliceLength - trackerLength; remainSize > 0 {
+	data := timeToBytes(time.Now())
+	if remainSize := pinger.Size - timeSliceLength; remainSize > 0 {
 		data = append(data, bytes.Repeat([]byte{1}, remainSize)...)
 	}
 
@@ -233,7 +195,7 @@ func TestNewPingerValid(t *testing.T) {
 	// DNS names should resolve into IP addresses
 	AssertNotEqualStrings(t, "www.google.com", p.IPAddr().String())
 	AssertTrue(t, isIPv4(p.IPAddr().IP))
-	AssertFalse(t, p.Privileged())
+	AssertTrue(t, p.Privileged())
 	// Test that SetPrivileged works
 	p.SetPrivileged(true)
 	AssertTrue(t, p.Privileged())
@@ -253,7 +215,7 @@ func TestNewPingerValid(t *testing.T) {
 	// DNS names should resolve into IP addresses
 	AssertNotEqualStrings(t, "localhost", p.IPAddr().String())
 	AssertTrue(t, isIPv4(p.IPAddr().IP))
-	AssertFalse(t, p.Privileged())
+	AssertTrue(t, p.Privileged())
 	// Test that SetPrivileged works
 	p.SetPrivileged(true)
 	AssertTrue(t, p.Privileged())
@@ -271,7 +233,7 @@ func TestNewPingerValid(t *testing.T) {
 	AssertNoError(t, err)
 	AssertEqualStrings(t, "127.0.0.1", p.Addr())
 	AssertTrue(t, isIPv4(p.IPAddr().IP))
-	AssertFalse(t, p.Privileged())
+	AssertTrue(t, p.Privileged())
 	// Test that SetPrivileged works
 	p.SetPrivileged(true)
 	AssertTrue(t, p.Privileged())
@@ -291,9 +253,9 @@ func TestNewPingerValid(t *testing.T) {
 	// DNS names should resolve into IP addresses
 	AssertNotEqualStrings(t, "ipv6.google.com", p.IPAddr().String())
 	AssertFalse(t, isIPv4(p.IPAddr().IP))
-	AssertFalse(t, p.Privileged())
-	// Test that SetPrivileged works
-	p.SetPrivileged(true)
+	AssertTrue(t, p.Privileged())
+	// Test that SetPrivileged deprecation works
+	p.SetPrivileged(false)
 	AssertTrue(t, p.Privileged())
 	// Test setting to ipv4 address
 	err = p.SetAddr("www.google.com")
@@ -310,8 +272,8 @@ func TestNewPingerValid(t *testing.T) {
 	AssertNoError(t, err)
 	AssertEqualStrings(t, "::1", p.Addr())
 	AssertFalse(t, isIPv4(p.IPAddr().IP))
-	AssertFalse(t, p.Privileged())
-	// Test that SetPrivileged works
+	AssertTrue(t, p.Privileged())
+	// Test that SetPrivileged deprecation works
 	p.SetPrivileged(true)
 	AssertTrue(t, p.Privileged())
 	// Test setting to ipv4 address
@@ -464,7 +426,6 @@ func makeTestPinger() *Pinger {
 	pinger.addr = "127.0.0.1"
 	pinger.protocol = "icmp"
 	pinger.id = 123
-	pinger.Tracker = 456
 	pinger.Size = 0
 
 	return pinger
@@ -517,10 +478,9 @@ func BenchmarkProcessPacket(b *testing.B) {
 	pinger.addr = "127.0.0.1"
 	pinger.protocol = "ip4:icmp"
 	pinger.id = 123
-	pinger.Tracker = 456
 
-	t := append(timeToBytes(time.Now()), intToBytes(pinger.Tracker)...)
-	if remainSize := pinger.Size - timeSliceLength - trackerLength; remainSize > 0 {
+	t := timeToBytes(time.Now())
+	if remainSize := pinger.Size - timeSliceLength; remainSize > 0 {
 		t = append(t, bytes.Repeat([]byte{1}, remainSize)...)
 	}
 

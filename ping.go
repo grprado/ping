@@ -58,7 +58,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
 	"net"
 	"runtime"
 	"sync"
@@ -72,7 +71,6 @@ import (
 
 const (
 	timeSliceLength  = 8
-	trackerLength    = 8
 	protocolICMP     = 1
 	protocolIPv6ICMP = 58
 )
@@ -84,22 +82,18 @@ var (
 
 // New returns a new Pinger struct pointer.
 func New(addr string) *Pinger {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	return &Pinger{
 		Count:      -1,
 		Interval:   time.Second,
 		RecordRtts: true,
 		Size:       timeSliceLength,
 		Timeout:    time.Second * 100000,
-		Tracker:    r.Int63n(math.MaxInt64),
-
-		addr:     addr,
-		done:     make(chan bool),
-		id:       r.Intn(math.MaxInt16),
-		ipaddr:   nil,
-		ipv4:     false,
-		network:  "ip",
-		protocol: "udp",
+		addr:       addr,
+		done:       make(chan bool),
+		ipaddr:     nil,
+		ipv4:       false,
+		network:    "ip",
+		protocol:   "icmp",
 	}
 }
 
@@ -150,9 +144,6 @@ type Pinger struct {
 
 	// Size of packet being sent
 	Size int
-
-	// Tracker: Used to uniquely identify packet when non-priviledged
-	Tracker int64
 
 	// Source is the source IP address
 	Source string
@@ -297,16 +288,11 @@ func (p *Pinger) SetNetwork(n string) {
 	}
 }
 
-// SetPrivileged sets the type of ping pinger will send.
-// false means pinger will send an "unprivileged" UDP ping.
-// true means pinger will send a "privileged" raw ICMP ping.
-// NOTE: setting to true requires that it be run with super-user privileges.
+// SetPrivileged does nothing, keep protocol as icmp
+//
+// Deprecated: only for interface compatibility, will be removed
 func (p *Pinger) SetPrivileged(privileged bool) {
-	if privileged {
-		p.protocol = "icmp"
-	} else {
-		p.protocol = "udp"
-	}
+	p.protocol = "icmp"
 }
 
 // Privileged returns whether pinger is running in privileged mode.
@@ -535,17 +521,12 @@ func (p *Pinger) processPacket(recv *packet) error {
 			}
 		}
 
-		if len(pkt.Data) < timeSliceLength+trackerLength {
+		if len(pkt.Data) < timeSliceLength {
 			return fmt.Errorf("insufficient data received; got: %d %v",
 				len(pkt.Data), pkt.Data)
 		}
 
-		tracker := bytesToInt(pkt.Data[timeSliceLength:])
 		timestamp := bytesToTime(pkt.Data[:timeSliceLength])
-
-		if tracker != p.Tracker {
-			return nil
-		}
 
 		outPkt.Rtt = receivedAt.Sub(timestamp)
 		outPkt.Seq = pkt.Seq
@@ -579,8 +560,8 @@ func (p *Pinger) sendICMP(conn *icmp.PacketConn) error {
 		dst = &net.UDPAddr{IP: p.ipaddr.IP, Zone: p.ipaddr.Zone}
 	}
 
-	t := append(timeToBytes(time.Now()), intToBytes(p.Tracker)...)
-	if remainSize := p.Size - timeSliceLength - trackerLength; remainSize > 0 {
+	t := timeToBytes(time.Now())
+	if remainSize := p.Size - timeSliceLength; remainSize > 0 {
 		t = append(t, bytes.Repeat([]byte{1}, remainSize)...)
 	}
 
