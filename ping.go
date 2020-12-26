@@ -434,7 +434,7 @@ func (p *Pinger) recvICMP(
 		case <-p.done:
 			return nil
 		default:
-			bytes := make([]byte, 512)
+			bytess := make([]byte, 512)
 			if err := conn.SetReadDeadline(time.Now().Add(time.Millisecond * 100)); err != nil {
 				return err
 			}
@@ -442,13 +442,13 @@ func (p *Pinger) recvICMP(
 			var err error
 			if p.ipv4 {
 				var cm *ipv4.ControlMessage
-				n, cm, _, err = conn.IPv4PacketConn().ReadFrom(bytes)
+				n, cm, _, err = conn.IPv4PacketConn().ReadFrom(bytess)
 				if cm != nil {
 					ttl = cm.TTL
 				}
 			} else {
 				var cm *ipv6.ControlMessage
-				n, cm, _, err = conn.IPv6PacketConn().ReadFrom(bytes)
+				n, cm, _, err = conn.IPv6PacketConn().ReadFrom(bytess)
 				if cm != nil {
 					ttl = cm.HopLimit
 				}
@@ -468,7 +468,7 @@ func (p *Pinger) recvICMP(
 			select {
 			case <-p.done:
 				return nil
-			case recv <- &packet{bytes: bytes, nbytes: n, ttl: ttl}:
+			case recv <- &packet{bytes: bytess, nbytes: n, ttl: ttl}:
 			}
 		}
 	}
