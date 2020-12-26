@@ -37,7 +37,7 @@ func main() {
 	timeout := flag.Duration("t", time.Second*100000, "")
 	interval := flag.Duration("i", time.Second, "")
 	count := flag.Int("c", -1, "")
-	privileged := flag.Bool("privileged", false, "")
+
 	flag.Usage = func() {
 		fmt.Print(usage)
 	}
@@ -79,7 +79,6 @@ func main() {
 	pinger.Count = *count
 	pinger.Interval = *interval
 	pinger.Timeout = *timeout
-	pinger.SetPrivileged(*privileged)
 
 	fmt.Printf("PING %s (%s):\n", pinger.Addr(), pinger.IPAddr())
 	err = pinger.Run()

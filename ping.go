@@ -75,6 +75,7 @@ const (
 	timeSliceLength  = 8
 	protocolICMP     = 1
 	protocolIPv6ICMP = 58
+	defaultProtocol  = "icmp"
 )
 
 var (
@@ -98,7 +99,6 @@ func New(addr string) *Pinger {
 		ipaddr:     nil,
 		ipv4:       false,
 		network:    "ip",
-		protocol:   "icmp",
 	}
 }
 
@@ -164,8 +164,6 @@ type Pinger struct {
 	sequence int
 	// network is one of "ip", "ip4", or "ip6".
 	network string
-	// protocol is "icmp" or "udp".
-	protocol string
 }
 
 type packet struct {
@@ -293,18 +291,6 @@ func (p *Pinger) SetNetwork(n string) {
 	}
 }
 
-// SetPrivileged does nothing, keep protocol as icmp
-//
-// Deprecated: only for interface compatibility, will be removed
-func (p *Pinger) SetPrivileged(privileged bool) {
-	p.protocol = "icmp"
-}
-
-// Privileged returns whether pinger is running in privileged mode.
-func (p *Pinger) Privileged() bool {
-	return p.protocol == "icmp"
-}
-
 // Run runs the pinger. This is a blocking function that will exit when it's
 // done. If Count or Interval are not specified, it will run continuously until
 // it is interrupted.
@@ -318,14 +304,14 @@ func (p *Pinger) Run() error {
 		return err
 	}
 	if p.ipv4 {
-		if conn, err = p.listen(ipv4Proto[p.protocol]); err != nil {
+		if conn, err = p.listen(ipv4Proto[defaultProtocol]); err != nil {
 			return err
 		}
 		if err = conn.IPv4PacketConn().SetControlMessage(ipv4.FlagTTL, true); runtime.GOOS != "windows" && err != nil {
 			return err
 		}
 	} else {
-		if conn, err = p.listen(ipv6Proto[p.protocol]); err != nil {
+		if conn, err = p.listen(ipv6Proto[defaultProtocol]); err != nil {
 			return err
 		}
 		if err = conn.IPv6PacketConn().SetControlMessage(ipv6.FlagHopLimit, true); runtime.GOOS != "windows" && err != nil {
@@ -518,12 +504,10 @@ func (p *Pinger) processPacket(recv *packet) error {
 
 	switch pkt := m.Body.(type) {
 	case *icmp.Echo:
-		// If we are priviledged, we can match icmp.ID
-		if p.protocol == "icmp" {
-			// Check if reply from same ID
-			if pkt.ID != p.id {
-				return nil
-			}
+
+		// Check if reply from same ID
+		if pkt.ID != p.id {
+			return nil
 		}
 
 		if len(pkt.Data) < timeSliceLength {

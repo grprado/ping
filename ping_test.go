@@ -89,7 +89,6 @@ func TestProcessPacket_IgnoreNonEchoReplies(t *testing.T) {
 
 func TestProcessPacket_IDMismatch(t *testing.T) {
 	pinger := makeTestPinger()
-	pinger.protocol = "icmp" // ID is only checked on "icmp" protocol
 	shouldBe0 := 0
 	// this function should not be called because the tracker is mismatched
 	pinger.OnRecv = func(pkt *Packet) {
@@ -195,10 +194,7 @@ func TestNewPingerValid(t *testing.T) {
 	// DNS names should resolve into IP addresses
 	AssertNotEqualStrings(t, "www.google.com", p.IPAddr().String())
 	AssertTrue(t, isIPv4(p.IPAddr().IP))
-	AssertTrue(t, p.Privileged())
-	// Test that SetPrivileged works
-	p.SetPrivileged(true)
-	AssertTrue(t, p.Privileged())
+
 	// Test setting to ipv4 address
 	err = p.SetAddr("www.google.com")
 	AssertNoError(t, err)
@@ -215,10 +211,7 @@ func TestNewPingerValid(t *testing.T) {
 	// DNS names should resolve into IP addresses
 	AssertNotEqualStrings(t, "localhost", p.IPAddr().String())
 	AssertTrue(t, isIPv4(p.IPAddr().IP))
-	AssertTrue(t, p.Privileged())
-	// Test that SetPrivileged works
-	p.SetPrivileged(true)
-	AssertTrue(t, p.Privileged())
+
 	// Test setting to ipv4 address
 	err = p.SetAddr("www.google.com")
 	AssertNoError(t, err)
@@ -233,10 +226,7 @@ func TestNewPingerValid(t *testing.T) {
 	AssertNoError(t, err)
 	AssertEqualStrings(t, "127.0.0.1", p.Addr())
 	AssertTrue(t, isIPv4(p.IPAddr().IP))
-	AssertTrue(t, p.Privileged())
-	// Test that SetPrivileged works
-	p.SetPrivileged(true)
-	AssertTrue(t, p.Privileged())
+
 	// Test setting to ipv4 address
 	err = p.SetAddr("www.google.com")
 	AssertNoError(t, err)
@@ -253,10 +243,7 @@ func TestNewPingerValid(t *testing.T) {
 	// DNS names should resolve into IP addresses
 	AssertNotEqualStrings(t, "ipv6.google.com", p.IPAddr().String())
 	AssertFalse(t, isIPv4(p.IPAddr().IP))
-	AssertTrue(t, p.Privileged())
-	// Test that SetPrivileged deprecation works
-	p.SetPrivileged(false)
-	AssertTrue(t, p.Privileged())
+
 	// Test setting to ipv4 address
 	err = p.SetAddr("www.google.com")
 	AssertNoError(t, err)
@@ -272,10 +259,7 @@ func TestNewPingerValid(t *testing.T) {
 	AssertNoError(t, err)
 	AssertEqualStrings(t, "::1", p.Addr())
 	AssertFalse(t, isIPv4(p.IPAddr().IP))
-	AssertTrue(t, p.Privileged())
-	// Test that SetPrivileged deprecation works
-	p.SetPrivileged(true)
-	AssertTrue(t, p.Privileged())
+
 	// Test setting to ipv4 address
 	err = p.SetAddr("www.google.com")
 	AssertNoError(t, err)
@@ -424,7 +408,6 @@ func makeTestPinger() *Pinger {
 
 	pinger.ipv4 = true
 	pinger.addr = "127.0.0.1"
-	pinger.protocol = "icmp"
 	pinger.id = 123
 	pinger.Size = 0
 
@@ -476,7 +459,6 @@ func BenchmarkProcessPacket(b *testing.B) {
 
 	pinger.ipv4 = true
 	pinger.addr = "127.0.0.1"
-	pinger.protocol = "ip4:icmp"
 	pinger.id = 123
 
 	t := timeToBytes(time.Now())
